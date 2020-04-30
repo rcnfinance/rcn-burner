@@ -25,7 +25,7 @@ contract Auth {
     function deny(address usr) external auth {
         authorized[usr] = 0;
     }
-    
+
     /**
      * @dev Throws if called by any account that is not authorized.
      */
