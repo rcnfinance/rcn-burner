@@ -408,6 +408,41 @@ contract('Burner Contract', function (accounts) {
             await burner.setMinimumSoldTAmount(defaultMinimumSoldTAmount);
         });
     });
+    describe('Test authorazation', async function () {
+        it('should not be able to start a new auction if user is not authorize', async function () {
+            const { burnTBid, soldTAmount } = await startNewAuction(toWei('100'), 90);
+            await tryCatchRevert(
+                () => burner.startAuction(
+                    burnTBid,
+                    soldTAmount,
+                    { from: bidder1 }
+                ),
+                'Auth/not-authorized'
+            );
+        });
+        it('should authorize a new user', async function () {
+            await burner.rely(bidder1, { from: owner });
+            assert(await burner.authorized(bidder1), 1);
+            const { burnTBid, soldTAmount } = await startNewAuction(toWei('100'), 90);
+            await burner.startAuction(
+                burnTBid,
+                soldTAmount,
+                { from: bidder1 }
+            );
+        });
+        it('should revoke authorization for a user', async function () {
+            await burner.deny(bidder1, { from: owner });
+            const { burnTBid, soldTAmount } = await startNewAuction(toWei('100'), 90);
+            await tryCatchRevert(
+                () => burner.startAuction(
+                    burnTBid,
+                    soldTAmount,
+                    { from: bidder1 }
+                ),
+                'Auth/not-authorized'
+            );
+        });
+    });
     describe('Test BURNER not live', async function () {
         it('try reclaim when burner still live', async function () {
             const { burnTBid, soldTAmount } = await startNewAuction(toWei('100'), 90);
