@@ -37,7 +37,6 @@
     "bn-chai": "^1.0.1",
     "bn.js": "^4.11.8",
     "chai": "^4.2.0",
-    "coveralls": "^3.0.1",
     "dotenv": "^4.0.0",
     "eslint": "^4.19.1",
     "eslint-config-standard": "^10.2.1",
