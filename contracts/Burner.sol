@@ -224,16 +224,16 @@ contract Burner is Ownable, Auth {
         require(_newBurnTBid > bids[_id].burnTBid, "Burner/bid-not-higher");
         require(_newBurnTBid.mult(ONE) >= bidIncrement.mult(bids[_id].burnTBid), "Burner/insufficient-increase");
 
-        // Update mapping bid to auction with the new bid values
-        bids[_id].bidder = msg.sender;
-        bids[_id].burnTBid = _newBurnTBid;
-        bids[_id].expirationTime = uint48(now.add(uint256(bidDuration)));
-
         // Transfer old `burnT` bid amount from msg.sender to the old bidder
         require(burnT.transferFrom(msg.sender, bids[_id].bidder, bids[_id].burnTBid), "Burner/Error sending tokens for old bidder");
 
         //  Transfer the difference between the old and new bid of `burnT` from msg.sender to this contract
         require(burnT.transferFrom(msg.sender, address(this), _newBurnTBid - bids[_id].burnTBid),  "Burner/Error pulling tokens from bidder");
+
+        // Update mapping bid to auction with the new bid values
+        bids[_id].bidder = msg.sender;
+        bids[_id].burnTBid = _newBurnTBid;
+        bids[_id].expirationTime = uint48(now.add(uint256(bidDuration)));
 
         // Emit offer event
         emit Offer(_id, _newBurnTBid, msg.sender);
