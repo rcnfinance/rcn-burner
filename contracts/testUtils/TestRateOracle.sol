@@ -47,7 +47,7 @@ contract TestRateOracle is BytesUtils, ERC165, RateOracle {
             tokens = uint256(btokens);
             equivalent = uint256(bequivalent);
         } else {
-            tokens = 1000000000000000000;
+            tokens = 1000000000000000000000000000000000000;
             equivalent = RCNequivalent;
         }
     }

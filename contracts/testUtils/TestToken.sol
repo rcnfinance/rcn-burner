@@ -83,15 +83,22 @@ contract TestToken is StandardToken {
     uint256 public constant PRICE = 4000;
 
     // metadata
-    string public constant name = "Infinite Test Token";
-    string public constant symbol = "TEST";
-    uint8 public constant decimals = 18;
+    string public name;
+    string public symbol;
+    uint8 public  decimals;
     string public version = "1.1";
 
     event CreatedToken(address _address);
     event SetBalance(address _address, uint256 _balance);
 
-    constructor() public {
+    constructor(
+        string memory _symbol,
+        string memory _name,
+        uint8 _decimals
+    ) public {
+        name = _name;
+        symbol = _symbol;
+        decimals = _decimals;
         emit CreatedToken(address(this));
     }
 
