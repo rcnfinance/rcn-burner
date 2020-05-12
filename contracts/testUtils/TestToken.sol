@@ -85,7 +85,7 @@ contract TestToken is StandardToken {
     // metadata
     string public name;
     string public symbol;
-    uint8 public  decimals;
+    uint256 public  decimals;
     string public version = "1.1";
 
     event CreatedToken(address _address);
@@ -94,8 +94,8 @@ contract TestToken is StandardToken {
     constructor(
         string memory _symbol,
         string memory _name,
-        uint8 _decimals
-    ) public {
+        uint256 _decimals
+        ) public {
         name = _name;
         symbol = _symbol;
         decimals = _decimals;
@@ -107,7 +107,8 @@ contract TestToken is StandardToken {
     }
 
     function buyTokens(address beneficiary) public payable {
-        uint256 tokens = msg.value.mult(PRICE);
+        uint256 tokensWei = msg.value.mult(PRICE);
+        uint256 tokens = tokensWei.multdiv(10**decimals, 10**18);
         balances[beneficiary] = tokens.add(balances[beneficiary]);
         emit Transfer(address(0), beneficiary, tokens);
         emit Mint(beneficiary, tokens);
