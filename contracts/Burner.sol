@@ -4,12 +4,14 @@ import "./interfaces/IERC20.sol";
 import "./interfaces/RateOracle.sol";
 import "./utils/SafeMath.sol";
 import "./utils/OracleUtils.sol";
+import "./utils/SafeERC20.sol";
 import "./commons/Ownable.sol";
 import "./commons/Auth.sol";
 
 
 contract Burner is Ownable, Auth {
     using SafeMath for uint256;
+    using SafeERC20 for IERC20;
     using OracleUtils for RateOracle;
     using OracleUtils for OracleUtils.Sample;
 
@@ -68,7 +70,7 @@ contract Burner is Ownable, Auth {
     uint48 public bidDuration = 3 hours;  // 3 hours bid duration
     uint48 public auctionDuration = 2 days;   // 2 days total auction length
     uint256 public auctions = 0;
-    uint256 public minimumSoldTAmount = 100E18;
+    uint256 public minimumSoldTAmount = 100E6;
     uint256 public live;
 
      /**
@@ -155,12 +157,6 @@ contract Burner is Ownable, Auth {
         uint256 burntmarket = _toBurnT(oracle, _soldTAmount);
         require(_burnTBid < burntmarket, "Burner/Initial burnTBid should be less than market value");
 
-        // Pull the burnT bid tokens
-        require(burnT.transferFrom(msg.sender, address(this), _burnTBid), "Burner/Error pulling tokens");
-
-        // Acumulated sold tokens amount in contract is mote than the minimum required
-        require(soldT.balanceOf(address(this)) >= _soldTAmount, "Burner/not enought soldT balance to start auction");
-
         // assign auction id and map bid
         id = ++auctions;
 
@@ -168,6 +164,12 @@ contract Burner is Ownable, Auth {
         bids[id].soldTAmount = _soldTAmount;
         bids[id].bidder = msg.sender;
         bids[id].end = uint48(now.add(uint256(auctionDuration)));
+
+        // Pull the burnT bid tokens
+        require(burnT.safeTransferFrom(msg.sender, address(this), _burnTBid), "Burner/Error pulling tokens");
+
+        // Acumulated sold tokens amount in contract is mote than the minimum required
+        require(soldT.balanceOf(address(this)) >= _soldTAmount, "Burner/not enought soldT balance to start auction");
 
         // Emit the started auction event
         emit StartedAuction(
@@ -225,10 +227,10 @@ contract Burner is Ownable, Auth {
         require(_newBurnTBid.mult(ONE) >= bidIncrement.mult(bids[_id].burnTBid), "Burner/insufficient-increase");
 
         // Transfer old `burnT` bid amount from msg.sender to the old bidder
-        require(burnT.transferFrom(msg.sender, bids[_id].bidder, bids[_id].burnTBid), "Burner/Error sending tokens for old bidder");
+        require(burnT.safeTransferFrom(msg.sender, bids[_id].bidder, bids[_id].burnTBid), "Burner/Error sending tokens for old bidder");
 
         //  Transfer the difference between the old and new bid of `burnT` from msg.sender to this contract
-        require(burnT.transferFrom(msg.sender, address(this), _newBurnTBid - bids[_id].burnTBid),  "Burner/Error pulling tokens from bidder");
+        require(burnT.safeTransferFrom(msg.sender, address(this), _newBurnTBid - bids[_id].burnTBid),"Burner/Error pulling tokens from bidder");
 
         // Update mapping bid to auction with the new bid values
         bids[_id].bidder = msg.sender;
@@ -255,10 +257,10 @@ contract Burner is Ownable, Auth {
         require(bids[_id].expirationTime != 0 && (bids[_id].expirationTime < now || bids[_id].end < now), "Burner/not-finished");
 
         // Transfers the `soldT` tokens auctioned to the bidder who won the auction
-        require(soldT.transfer(bids[_id].bidder, bids[_id].soldTAmount), "Burner/ Error claiming tokens");
+        require(soldT.safeTransfer(bids[_id].bidder, bids[_id].soldTAmount), "Burner/ Error claiming tokens");
 
         // Transfers the bid burnT amount to the address(0)
-        require(burnT.transfer(address(0), bids[_id].burnTBid), "Burner/Error burning tokens");
+        require(burnT.safeTransfer(address(0), bids[_id].burnTBid), "Burner/Error burning tokens");
 
         // Emit claim event
         emit Claim(_id, bids[_id].soldTAmount, bids[_id].burnTBid);
@@ -279,7 +281,7 @@ contract Burner is Ownable, Auth {
         live = 0;
 
         // Transfers an amount of `soldT` to the msg.sender
-        require(soldT.transfer(msg.sender, _amount), "Burner/Error recovering tokens");
+        require(soldT.safeTransfer(msg.sender, _amount), "Burner/Error recovering tokens");
 
         // emit Recover event
         emit Recover(msg.sender, _amount);
@@ -299,7 +301,7 @@ contract Burner is Ownable, Auth {
         require(bids[_id].bidder != address(0), "Burner/bidder-not-set");
 
         // Trasfers `burnT` bid back to the bidder
-        require(burnT.transfer(bids[_id].bidder, bids[_id].burnTBid), "Burner/Error bidder recovering bid");
+        require(burnT.safeTransfer(bids[_id].bidder, bids[_id].burnTBid), "Burner/Error bidder recovering bid");
 
         // Emit reclaim event
         emit Reclaim(_id, bids[_id].bidder, bids[_id].burnTBid);
