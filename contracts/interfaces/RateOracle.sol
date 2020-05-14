@@ -1,7 +1,5 @@
 pragma solidity ^0.5.12;
 
-import "./IERC165.sol";
-
 
 /**
     @dev Defines the interface of a standard Diaspore RCN Oracle,
@@ -12,12 +10,7 @@ import "./IERC165.sol";
 
     @author Agustin Aguilar
 */
-contract RateOracle is IERC165 {
-    uint256 public constant VERSION = 5;
-    bytes4 internal constant RATE_ORACLE_INTERFACE = 0xa265d8e0;
-
-    constructor() internal {}
-
+contract RateOracle {
     /**
         3 or 4 letters symbol of the currency, Ej: ETH
     */

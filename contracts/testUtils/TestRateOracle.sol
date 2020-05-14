@@ -1,18 +1,11 @@
 pragma solidity ^0.5.12;
 
 import "../interfaces/RateOracle.sol";
-import "../commons/ERC165.sol";
 import "../utils/BytesUtils.sol";
 
 
-contract TestRateOracle is BytesUtils, ERC165, RateOracle {
-    uint256 public constant VERSION = 5;
-    bytes4 internal constant RATE_ORACLE_INTERFACE = 0xa265d8e0;
+contract TestRateOracle is BytesUtils, RateOracle {
     address internal _token;
-
-    constructor() public {
-        _registerInterface(RATE_ORACLE_INTERFACE);
-    }
 
     function symbol() external view returns (string memory) {}
 
