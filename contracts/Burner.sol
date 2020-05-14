@@ -147,9 +147,6 @@ contract Burner is Ownable, Auth {
         // Checks contract is still alive
         require(live == 1, "Burner/not-live");
 
-        // Checks overflow
-        require(auctions < uint256(-1), "Burner/overflow");
-
         // Checks _soldTAmount is more than minimum required to start auction
         require(_soldTAmount >= minimumSoldTAmount, "Burner/ _soldTAmount too low");
 
@@ -327,4 +324,3 @@ contract Burner is Ownable, Auth {
             .toTokens(_amount);
     }
 }
-
