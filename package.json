@@ -44,6 +44,7 @@
     "eslint-plugin-node": "^5.2.1",
     "eslint-plugin-promise": "^3.8.0",
     "eslint-plugin-standard": "^3.1.0",
+    "eth-gas-reporter": "^0.2.17",
     "ethjs-abi": "^0.2.1",
     "ethlint": "^1.2.0",
     "ganache-cli": "^6.4.3",

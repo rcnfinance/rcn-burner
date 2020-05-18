@@ -14,6 +14,9 @@ module.exports = {
             gas: 6721975,
         },
     },
+    mocha: {
+        reporter: 'eth-gas-reporter',
+    },
     compilers: {
         solc: {
             version: '0.5.12',
