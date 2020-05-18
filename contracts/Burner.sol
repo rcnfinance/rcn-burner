@@ -15,6 +15,12 @@ contract Burner is Ownable, Auth {
     using OracleUtils for RateOracle;
     using OracleUtils for OracleUtils.Sample;
 
+    modifier isAlive() {
+        // Checks contract is still alive
+        require(live == 1, "Burner/not-live");
+        _;
+    }
+
     event StartedAuction(
       uint256 _id,
       uint256 _soldTAmount,
@@ -143,10 +149,7 @@ contract Burner is Ownable, Auth {
     function startAuction(
         uint256 _burnTBid,
         uint256 _soldTAmount
-    ) external auth returns (uint256 id) {
-        // Checks contract is still alive
-        require(live == 1, "Burner/not-live");
-
+    ) external auth isAlive returns (uint256 id) {
         // Checks _soldTAmount is more than minimum required to start auction
         require(_soldTAmount >= minimumSoldTAmount, "Burner/ _soldTAmount too low");
 
@@ -182,7 +185,7 @@ contract Burner is Ownable, Auth {
     */
     function restartAuction(
         uint256 _id
-    ) external {
+    ) external isAlive {
         Bid storage bid = bids[_id];
 
         // Checks that the auction finished
@@ -208,10 +211,7 @@ contract Burner is Ownable, Auth {
     function offer(
         uint256 _id,
         uint256 _newBurnTBid
-    ) external {
-        // Checks contract is still alive
-        require(live == 1, "Burner/not-live");
-
+    ) external isAlive {
         Bid storage bid = bids[_id];
 
         // Checks the bidder is set. If not it means that the auction do not exits or was deleted
@@ -250,10 +250,7 @@ contract Burner is Ownable, Auth {
     */
     function claim(
         uint256 _id
-    ) external {
-        // Checks contract is still alive
-        require(live == 1, "Burner/not-live");
-
+    ) external isAlive {
         Bid storage bid = bids[_id];
 
         // Checks that the offer expiration is not 0 and auction or offer expiration finished
