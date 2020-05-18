@@ -183,14 +183,16 @@ contract Burner is Ownable, Auth {
     function restartAuction(
         uint256 _id
     ) external {
+        Bid storage bid = bids[_id];
+
         // Checks that the auction finished
-        require(bids[_id].end < now, "Burner/not-finished");
+        require(bid.end < now, "Burner/not-finished");
 
         // Checks there is no new bid placed
-        require(bids[_id].expirationTime == 0, "Burner/bid-already-placed");
+        require(bid.expirationTime == 0, "Burner/bid-already-placed");
 
         // Restart auction - set new end time
-        bids[_id].end = uint48(now.add(uint256(auctionDuration)));
+        bid.end = uint48(now.add(uint256(auctionDuration)));
 
         // Emit the Restart auction event
         emit RestartAuction(_id);
@@ -210,29 +212,31 @@ contract Burner is Ownable, Auth {
         // Checks contract is still alive
         require(live == 1, "Burner/not-live");
 
+        Bid storage bid = bids[_id];
+
         // Checks the bidder is set. If not it means that the auction do not exits or was deleted
-        require(bids[_id].bidder != address(0), "Burner/bidder-not-set");
+        require(bid.bidder != address(0), "Burner/bidder-not-set");
 
         // Checks that the offer expiration time has not been reached or is equal to 0
-        require(bids[_id].expirationTime > now || bids[_id].expirationTime == 0, "Burner/already-finished-bid");
+        require(bid.expirationTime > now || bid.expirationTime == 0, "Burner/already-finished-bid");
 
         // Checks auction did not end
-        require(bids[_id].end > now, "Burner/already-finished-end");
+        require(bid.end > now, "Burner/already-finished-end");
 
         // Checks that the bid is higher than the older bid and the increment is sufficient
-        require(_newBurnTBid > bids[_id].burnTBid, "Burner/bid-not-higher");
-        require(_newBurnTBid.mult(ONE) >= bidIncrement.mult(bids[_id].burnTBid), "Burner/insufficient-increase");
+        require(_newBurnTBid > bid.burnTBid, "Burner/bid-not-higher");
+        require(_newBurnTBid.mult(ONE) >= bidIncrement.mult(bid.burnTBid), "Burner/insufficient-increase");
 
         // Transfer old `burnT` bid amount from msg.sender to the old bidder
-        require(burnT.safeTransferFrom(msg.sender, bids[_id].bidder, bids[_id].burnTBid), "Burner/Error sending tokens for old bidder");
+        require(burnT.safeTransferFrom(msg.sender, bid.bidder, bid.burnTBid), "Burner/Error sending tokens for old bidder");
 
         //  Transfer the difference between the old and new bid of `burnT` from msg.sender to this contract
-        require(burnT.safeTransferFrom(msg.sender, address(this), _newBurnTBid - bids[_id].burnTBid),"Burner/Error pulling tokens from bidder");
+        require(burnT.safeTransferFrom(msg.sender, address(this), _newBurnTBid - bid.burnTBid),"Burner/Error pulling tokens from bidder");
 
         // Update mapping bid to auction with the new bid values
-        bids[_id].bidder = msg.sender;
-        bids[_id].burnTBid = _newBurnTBid;
-        bids[_id].expirationTime = uint48(now.add(uint256(bidDuration)));
+        bid.bidder = msg.sender;
+        bid.burnTBid = _newBurnTBid;
+        bid.expirationTime = uint48(now.add(uint256(bidDuration)));
 
         // Emit offer event
         emit Offer(_id, _newBurnTBid, msg.sender);
@@ -250,17 +254,19 @@ contract Burner is Ownable, Auth {
         // Checks contract is still alive
         require(live == 1, "Burner/not-live");
 
+        Bid storage bid = bids[_id];
+
         // Checks that the offer expiration is not 0 and auction or offer expiration finished
-        require(bids[_id].expirationTime != 0 && (bids[_id].expirationTime < now || bids[_id].end < now), "Burner/not-finished");
+        require(bid.expirationTime != 0 && (bid.expirationTime < now || bid.end < now), "Burner/not-finished");
 
         // Transfers the `soldT` tokens auctioned to the bidder who won the auction
-        require(soldT.safeTransfer(bids[_id].bidder, bids[_id].soldTAmount), "Burner/ Error claiming tokens");
+        require(soldT.safeTransfer(bid.bidder, bid.soldTAmount), "Burner/ Error claiming tokens");
 
         // Transfers the bid burnT amount to the address(0)
-        require(burnT.safeTransfer(address(0), bids[_id].burnTBid), "Burner/Error burning tokens");
+        require(burnT.safeTransfer(address(0), bid.burnTBid), "Burner/Error burning tokens");
 
         // Emit claim event
-        emit Claim(_id, bids[_id].soldTAmount, bids[_id].burnTBid);
+        emit Claim(_id, bid.soldTAmount, bid.burnTBid);
 
         // Delete auction bid mapping entry
         delete bids[_id];
@@ -294,14 +300,16 @@ contract Burner is Ownable, Auth {
         // Checks contract is not alive
         require(live == 0, "Burner/still-live");
 
+        Bid storage bid = bids[_id];
+
         // Checks auction has a bidder set
-        require(bids[_id].bidder != address(0), "Burner/bidder-not-set");
+        require(bid.bidder != address(0), "Burner/bidder-not-set");
 
         // Trasfers `burnT` bid back to the bidder
-        require(burnT.safeTransfer(bids[_id].bidder, bids[_id].burnTBid), "Burner/Error bidder recovering bid");
+        require(burnT.safeTransfer(bid.bidder, bid.burnTBid), "Burner/Error bidder recovering bid");
 
         // Emit reclaim event
-        emit Reclaim(_id, bids[_id].bidder, bids[_id].burnTBid);
+        emit Reclaim(_id, bid.bidder, bid.burnTBid);
 
         // Delete auction bid mapping entry
         delete bids[_id];
