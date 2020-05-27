@@ -46,8 +46,8 @@ contract Burner is Ownable, Auth {
     );
 
     event Recover(
-        address sender,
-        uint256 soldTAmount
+        address _sender,
+        uint256 _soldTAmount
     );
 
     event RestartAuction(uint256 id);
@@ -103,8 +103,8 @@ contract Burner is Ownable, Auth {
     function setBidIncrement(
         uint256 _bidIncrement
     ) external auth {
-        emit SetBidIncrement(_bidIncrement);
         bidIncrement = _bidIncrement;
+        emit SetBidIncrement(_bidIncrement);
     }
 
     /**
@@ -113,8 +113,9 @@ contract Burner is Ownable, Auth {
     function setBidDuration(
         uint48 _bidDuration
     ) external auth {
-        emit SetBidDuration(_bidDuration);
         bidDuration = _bidDuration;
+        emit SetBidDuration(_bidDuration);
+
     }
 
     /**
@@ -123,8 +124,8 @@ contract Burner is Ownable, Auth {
     function setAuctionDuration(
         uint48 _auctionDuration
     ) external auth {
-        emit SetAuctionDuration(_auctionDuration);
         auctionDuration = _auctionDuration;
+        emit SetAuctionDuration(_auctionDuration);
     }
 
     /**
@@ -133,8 +134,8 @@ contract Burner is Ownable, Auth {
     function setMinimumSoldTAmount(
         uint256 _minimumSoldTAmount
     ) external auth {
-        emit SetMinimumSoldTAmount(_minimumSoldTAmount);
         minimumSoldTAmount = _minimumSoldTAmount;
+        emit SetMinimumSoldTAmount(_minimumSoldTAmount);
     }
 
     /**  Getters  */
