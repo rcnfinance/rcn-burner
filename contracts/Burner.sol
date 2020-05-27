@@ -160,8 +160,8 @@ contract Burner is Ownable, Auth {
         require(_soldTAmount >= minimumSoldTAmount, "Burner/ _soldTAmount too low");
 
         //check bid delta to oracle rate value. Check if discount is applied.
-        uint256 burntmarket = _toBurnT(oracle, _soldTAmount);
-        require(_burnTBid < burntmarket, "Burner/Initial burnTBid should be less than market value");
+        uint256 burntMarket = _toBurnT(oracle, _soldTAmount);
+        require(_burnTBid < burntMarket, "Burner/Initial burnTBid should be less than market value");
 
         // assign auction id and map bid
         id = ++auctions;
@@ -174,7 +174,7 @@ contract Burner is Ownable, Auth {
         // Pull the burnT bid tokens
         require(burnT.safeTransferFrom(msg.sender, address(this), _burnTBid), "Burner/Error pulling tokens");
 
-        // Acumulated sold tokens amount in contract is mote than the minimum required
+        // Acumulated sold tokens amount in contract is more than the minimum required
         require(soldT.balanceOf(address(this)) >= _soldTAmount, "Burner/not enought soldT balance to start auction");
 
         // Emit the started auction event
