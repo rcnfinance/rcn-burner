@@ -46,8 +46,8 @@ contract Burner is Ownable, Auth {
     );
 
     event Recover(
-        address sender,
-        uint256 soldTAmount
+        address _sender,
+        uint256 _soldTAmount
     );
 
     event RestartAuction(uint256 id);
@@ -75,7 +75,7 @@ contract Burner is Ownable, Auth {
     uint256 public bidIncrement = 1.05E18;  // 5% minimum bid increase
     uint48 public bidDuration = 3 hours;  // 3 hours bid duration
     uint48 public auctionDuration = 2 days;   // 2 days total auction length
-    uint256 public auctions = 0;
+    uint256 public auctions;
     uint256 public minimumSoldTAmount = 100E6;
     uint256 public live;
 
@@ -100,41 +100,34 @@ contract Burner is Ownable, Auth {
     /**
         @notice Sets the a new value for the `bidIncrement`
     */
-    function setBidIncrement(
-        uint256 _bidIncrement
-    ) external auth {
-        emit SetBidIncrement(_bidIncrement);
+    function setBidIncrement(uint256 _bidIncrement) external auth {
         bidIncrement = _bidIncrement;
+        emit SetBidIncrement(_bidIncrement);
     }
 
     /**
         @notice Sets the a new value for the `bidDuration`
     */
-    function setBidDuration(
-        uint48 _bidDuration
-    ) external auth {
-        emit SetBidDuration(_bidDuration);
+    function setBidDuration(uint48 _bidDuration) external auth {
         bidDuration = _bidDuration;
+        emit SetBidDuration(_bidDuration);
+
     }
 
     /**
         @notice Sets the a new value for `auctionDuration`
     */
-    function setAuctionDuration(
-        uint48 _auctionDuration
-    ) external auth {
-        emit SetAuctionDuration(_auctionDuration);
+    function setAuctionDuration(uint48 _auctionDuration) external auth {
         auctionDuration = _auctionDuration;
+        emit SetAuctionDuration(_auctionDuration);
     }
 
     /**
         @notice Sets the a new value for `minimumSoldTAmount`
     */
-    function setMinimumSoldTAmount(
-        uint256 _minimumSoldTAmount
-    ) external auth {
-        emit SetMinimumSoldTAmount(_minimumSoldTAmount);
+    function setMinimumSoldTAmount(uint256 _minimumSoldTAmount) external auth {
         minimumSoldTAmount = _minimumSoldTAmount;
+        emit SetMinimumSoldTAmount(_minimumSoldTAmount);
     }
 
     /**  Getters  */
@@ -162,16 +155,13 @@ contract Burner is Ownable, Auth {
         @param _soldTAmount Amount to be auctioned of `soldT`
         @return The id of the new auction
     */
-    function startAuction(
-        uint256 _burnTBid,
-        uint256 _soldTAmount
-    ) external auth isAlive returns (uint256 id) {
+    function startAuction(uint256 _burnTBid, uint256 _soldTAmount) external auth isAlive returns (uint256 id) {
         // Checks _soldTAmount is more than minimum required to start auction
         require(_soldTAmount >= minimumSoldTAmount, "Burner/ _soldTAmount too low");
 
         //check bid delta to oracle rate value. Check if discount is applied.
-        uint256 burntmarket = _toBurnT(oracle, _soldTAmount);
-        require(_burnTBid < burntmarket, "Burner/Initial burnTBid should be less than market value");
+        uint256 burntMarket = _toBurnT(oracle, _soldTAmount);
+        require(_burnTBid < burntMarket, "Burner/Initial burnTBid should be less than market value");
 
         // assign auction id and map bid
         id = ++auctions;
@@ -184,7 +174,7 @@ contract Burner is Ownable, Auth {
         // Pull the burnT bid tokens
         require(burnT.safeTransferFrom(msg.sender, address(this), _burnTBid), "Burner/Error pulling tokens");
 
-        // Acumulated sold tokens amount in contract is mote than the minimum required
+        // Acumulated sold tokens amount in contract is more than the minimum required
         require(soldT.balanceOf(address(this)) >= _soldTAmount, "Burner/not enought soldT balance to start auction");
 
         // Emit the started auction event
@@ -199,9 +189,7 @@ contract Burner is Ownable, Auth {
         @notice Restarts an auction that has already ended and did not have a new bid.
         @param _id Auction Id
     */
-    function restartAuction(
-        uint256 _id
-    ) external isAlive {
+    function restartAuction(uint256 _id) external isAlive {
         Bid storage bid = bids[_id];
 
         // Checks that the auction finished
@@ -224,10 +212,7 @@ contract Burner is Ownable, Auth {
         @param _id Auction Id
         @param _newBurnTBid new bid amount `burnT`
     */
-    function offer(
-        uint256 _id,
-        uint256 _newBurnTBid
-    ) external isAlive {
+    function offer (uint256 _id, uint256 _newBurnTBid) external isAlive {
         Bid storage bid = bids[_id];
 
         // Checks the bidder is set. If not it means that the auction do not exits or was deleted
@@ -264,9 +249,7 @@ contract Burner is Ownable, Auth {
             The `burnT` tokens of the bid are burned (transfer to address 0x).
         @param _id Auction Id
     */
-    function claim(
-        uint256 _id
-    ) external isAlive {
+    function claim(uint256 _id) external isAlive {
         Bid storage bid = bids[_id];
 
         // Checks that the offer expiration is not 0 and auction or offer expiration finished
@@ -291,9 +274,7 @@ contract Burner is Ownable, Auth {
             Can only be called by an authorized user.
         @param _amount amount of `soldT` to recover from the contract
     */
-    function recover(
-        uint256 _amount
-    ) external auth {
+    function recover(uint256 _amount) external auth {
         live = 0;
 
         // Transfers an amount of `soldT` to the msg.sender
@@ -307,9 +288,7 @@ contract Burner is Ownable, Auth {
         @notice Bidder is able to reclaim it's bid if contract is not live.
         @param _id auction Id
     */
-    function reclaim(
-        uint256 _id
-    ) external {
+    function reclaim(uint256 _id) external {
         // Checks contract is not alive
         require(live == 0, "Burner/still-live");
 
@@ -336,10 +315,7 @@ contract Burner is Ownable, Auth {
         @param _amount Amount of `soldT` to convert
         @return The value of the `soldT` amount denominated in `burnT`
     */
-    function _toBurnT(
-        RateOracle _oracle,
-        uint256 _amount
-    ) private view returns (uint256) {
+    function _toBurnT(RateOracle _oracle, uint256 _amount) private view returns (uint256) {
         return _oracle
             .readStatic()
             .toTokens(_amount);
