@@ -75,7 +75,7 @@ contract Burner is Ownable, Auth {
     uint256 public bidIncrement = 1.05E18;  // 5% minimum bid increase
     uint48 public bidDuration = 3 hours;  // 3 hours bid duration
     uint48 public auctionDuration = 2 days;   // 2 days total auction length
-    uint256 public auctions = 0;
+    uint256 public auctions;
     uint256 public minimumSoldTAmount = 100E6;
     uint256 public live;
 
