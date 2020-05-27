@@ -137,6 +137,22 @@ contract Burner is Ownable, Auth {
         minimumSoldTAmount = _minimumSoldTAmount;
     }
 
+    /**  Getters  */
+    function claimAvailable(uint256 _id) external view returns (bool) {
+        // Returns if auction is available to claim
+        return (bids[_id].expirationTime != 0 && (bids[_id].expirationTime < now || bids[_id].end < now));
+    }
+
+    function minimumNeededOffer(uint256 _id) external view returns (uint256) {
+        // Returns minimun needed new offer for auction
+        return bidIncrement.multdiv(bids[_id].burnTBid, ONE).add(1);
+    }
+
+    function restartAvailable(uint256 _id) external view returns (bool) {
+        // Returns if auction is available to restart
+        return (bids[_id].end < now && bids[_id].expirationTime == 0);
+    }
+
     /**
         @notice Start a new auction, sets the amount to be auctioned of `soldT` and the initial `burnT` bid.
                 Can only be called by an authorized user.
