@@ -76,7 +76,7 @@ contract StandardToken {
 }
 
 
-contract TestToken is StandardToken {
+contract TestTokenBurner is StandardToken {
     event Mint(address indexed to, uint256 amount);
     event Destroy(address indexed from, uint256 amount);
 

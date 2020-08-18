@@ -1,5 +1,5 @@
 const Burner = artifacts.require('Burner');
-const TestToken = artifacts.require('TestToken');
+const TestToken = artifacts.require('TestTokenBurner');
 const TestRateOracle = artifacts.require('TestRateOracle');
 
 const {
