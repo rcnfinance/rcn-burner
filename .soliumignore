@@ -1,3 +1,5 @@
 node_modules
 coverageEnv
 .git
+contracts/interfaces/RateOracle.sol
+contracts/testUtils/TestTokenBurner.sol
