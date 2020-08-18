@@ -49,7 +49,8 @@ contract BurnerConverter is Ownable {
             _minReceive  
         );
       
-        require(IERC20(burnToken).transfer(address(0), receivedBurnT), "Failed to burn converted Tokens");
+        require(receivedBurnT >= _minReceive, "BurnerConverter/Amount received is less than minReceived");
+        require(IERC20(burnToken).transfer(address(0), receivedBurnT), "BurnerConverter/Failed to burn converted Tokens");
         
         emit BurnTokens(_soldToken, _soldAmount, receivedBurnT);
         
