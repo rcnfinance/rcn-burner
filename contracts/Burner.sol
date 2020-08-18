@@ -4,14 +4,22 @@ import "./interfaces/IERC20.sol";
 import "./interfaces/RateOracle.sol";
 import "./utils/SafeMath.sol";
 import "./utils/OracleUtils.sol";
+import "./utils/SafeERC20.sol";
 import "./commons/Ownable.sol";
 import "./commons/Auth.sol";
 
 
 contract Burner is Ownable, Auth {
     using SafeMath for uint256;
+    using SafeERC20 for IERC20;
     using OracleUtils for RateOracle;
     using OracleUtils for OracleUtils.Sample;
+
+    modifier isAlive() {
+        // Checks contract is still alive
+        require(live == 1, "Burner/not-live");
+        _;
+    }
 
     event StartedAuction(
       uint256 _id,
@@ -38,8 +46,8 @@ contract Burner is Ownable, Auth {
     );
 
     event Recover(
-        address sender,
-        uint256 soldTAmount
+        address _sender,
+        uint256 _soldTAmount
     );
 
     event RestartAuction(uint256 id);
@@ -67,8 +75,8 @@ contract Burner is Ownable, Auth {
     uint256 public bidIncrement = 1.05E18;  // 5% minimum bid increase
     uint48 public bidDuration = 3 hours;  // 3 hours bid duration
     uint48 public auctionDuration = 2 days;   // 2 days total auction length
-    uint256 public auctions = 0;
-    uint256 public minimumSoldTAmount = 100E18;
+    uint256 public auctions;
+    uint256 public minimumSoldTAmount = 100E6;
     uint256 public live;
 
      /**
@@ -92,41 +100,50 @@ contract Burner is Ownable, Auth {
     /**
         @notice Sets the a new value for the `bidIncrement`
     */
-    function setBidIncrement(
-        uint256 _bidIncrement
-    ) external auth {
-        emit SetBidIncrement(_bidIncrement);
+    function setBidIncrement(uint256 _bidIncrement) external auth {
         bidIncrement = _bidIncrement;
+        emit SetBidIncrement(_bidIncrement);
     }
 
     /**
         @notice Sets the a new value for the `bidDuration`
     */
-    function setBidDuration(
-        uint48 _bidDuration
-    ) external auth {
-        emit SetBidDuration(_bidDuration);
+    function setBidDuration(uint48 _bidDuration) external auth {
         bidDuration = _bidDuration;
+        emit SetBidDuration(_bidDuration);
+
     }
 
     /**
         @notice Sets the a new value for `auctionDuration`
     */
-    function setAuctionDuration(
-        uint48 _auctionDuration
-    ) external auth {
-        emit SetAuctionDuration(_auctionDuration);
+    function setAuctionDuration(uint48 _auctionDuration) external auth {
         auctionDuration = _auctionDuration;
+        emit SetAuctionDuration(_auctionDuration);
     }
 
     /**
         @notice Sets the a new value for `minimumSoldTAmount`
     */
-    function setMinimumSoldTAmount(
-        uint256 _minimumSoldTAmount
-    ) external auth {
-        emit SetMinimumSoldTAmount(_minimumSoldTAmount);
+    function setMinimumSoldTAmount(uint256 _minimumSoldTAmount) external auth {
         minimumSoldTAmount = _minimumSoldTAmount;
+        emit SetMinimumSoldTAmount(_minimumSoldTAmount);
+    }
+
+    /**  Getters  */
+    function claimAvailable(uint256 _id) external view returns (bool) {
+        // Returns if auction is available to claim
+        return (bids[_id].expirationTime != 0 && (bids[_id].expirationTime < now || bids[_id].end < now));
+    }
+
+    function minimumNeededOffer(uint256 _id) external view returns (uint256) {
+        // Returns minimun needed new offer for auction
+        return bidIncrement.multdiv(bids[_id].burnTBid, ONE).add(1);
+    }
+
+    function restartAvailable(uint256 _id) external view returns (bool) {
+        // Returns if auction is available to restart
+        return (bids[_id].end < now && bids[_id].expirationTime == 0);
     }
 
     /**
@@ -138,28 +155,13 @@ contract Burner is Ownable, Auth {
         @param _soldTAmount Amount to be auctioned of `soldT`
         @return The id of the new auction
     */
-    function startAuction(
-        uint256 _burnTBid,
-        uint256 _soldTAmount
-    ) external auth returns (uint256 id) {
-        // Checks contract is still alive
-        require(live == 1, "Burner/not-live");
-
-        // Checks overflow
-        require(auctions < uint256(-1), "Burner/overflow");
-
+    function startAuction(uint256 _burnTBid, uint256 _soldTAmount) external auth isAlive returns (uint256 id) {
         // Checks _soldTAmount is more than minimum required to start auction
         require(_soldTAmount >= minimumSoldTAmount, "Burner/ _soldTAmount too low");
 
         //check bid delta to oracle rate value. Check if discount is applied.
-        uint256 burntmarket = _toBurnT(oracle, _soldTAmount);
-        require(_burnTBid < burntmarket, "Burner/Initial burnTBid should be less than market value");
-
-        // Pull the burnT bid tokens
-        require(burnT.transferFrom(msg.sender, address(this), _burnTBid), "Burner/Error pulling tokens");
-
-        // Acumulated sold tokens amount in contract is mote than the minimum required
-        require(soldT.balanceOf(address(this)) >= _soldTAmount, "Burner/not enought soldT balance to start auction");
+        uint256 burntMarket = _toBurnT(oracle, _soldTAmount);
+        require(_burnTBid < burntMarket, "Burner/Initial burnTBid should be less than market value");
 
         // assign auction id and map bid
         id = ++auctions;
@@ -168,6 +170,12 @@ contract Burner is Ownable, Auth {
         bids[id].soldTAmount = _soldTAmount;
         bids[id].bidder = msg.sender;
         bids[id].end = uint48(now.add(uint256(auctionDuration)));
+
+        // Pull the burnT bid tokens
+        require(burnT.safeTransferFrom(msg.sender, address(this), _burnTBid), "Burner/Error pulling tokens");
+
+        // Acumulated sold tokens amount in contract is more than the minimum required
+        require(soldT.balanceOf(address(this)) >= _soldTAmount, "Burner/not enought soldT balance to start auction");
 
         // Emit the started auction event
         emit StartedAuction(
@@ -181,17 +189,17 @@ contract Burner is Ownable, Auth {
         @notice Restarts an auction that has already ended and did not have a new bid.
         @param _id Auction Id
     */
-    function restartAuction(
-        uint256 _id
-    ) external {
+    function restartAuction(uint256 _id) external isAlive {
+        Bid storage bid = bids[_id];
+
         // Checks that the auction finished
-        require(bids[_id].end < now, "Burner/not-finished");
+        require(bid.end < now, "Burner/not-finished");
 
         // Checks there is no new bid placed
-        require(bids[_id].expirationTime == 0, "Burner/bid-already-placed");
+        require(bid.expirationTime == 0, "Burner/bid-already-placed");
 
         // Restart auction - set new end time
-        bids[_id].end = uint48(now.add(uint256(auctionDuration)));
+        bid.end = uint48(now.add(uint256(auctionDuration)));
 
         // Emit the Restart auction event
         emit RestartAuction(_id);
@@ -204,36 +212,32 @@ contract Burner is Ownable, Auth {
         @param _id Auction Id
         @param _newBurnTBid new bid amount `burnT`
     */
-    function offer(
-        uint256 _id,
-        uint256 _newBurnTBid
-    ) external {
-        // Checks contract is still alive
-        require(live == 1, "Burner/not-live");
+    function offer (uint256 _id, uint256 _newBurnTBid) external isAlive {
+        Bid storage bid = bids[_id];
 
         // Checks the bidder is set. If not it means that the auction do not exits or was deleted
-        require(bids[_id].bidder != address(0), "Burner/bidder-not-set");
+        require(bid.bidder != address(0), "Burner/bidder-not-set");
 
         // Checks that the offer expiration time has not been reached or is equal to 0
-        require(bids[_id].expirationTime > now || bids[_id].expirationTime == 0, "Burner/already-finished-bid");
+        require(bid.expirationTime > now || bid.expirationTime == 0, "Burner/already-finished-bid");
 
         // Checks auction did not end
-        require(bids[_id].end > now, "Burner/already-finished-end");
+        require(bid.end > now, "Burner/already-finished-end");
 
         // Checks that the bid is higher than the older bid and the increment is sufficient
-        require(_newBurnTBid > bids[_id].burnTBid, "Burner/bid-not-higher");
-        require(_newBurnTBid.mult(ONE) >= bidIncrement.mult(bids[_id].burnTBid), "Burner/insufficient-increase");
+        require(_newBurnTBid > bid.burnTBid, "Burner/bid-not-higher");
+        require(_newBurnTBid.mult(ONE) >= bidIncrement.mult(bid.burnTBid), "Burner/insufficient-increase");
 
         // Transfer old `burnT` bid amount from msg.sender to the old bidder
-        require(burnT.transferFrom(msg.sender, bids[_id].bidder, bids[_id].burnTBid), "Burner/Error sending tokens for old bidder");
+        require(burnT.safeTransferFrom(msg.sender, bid.bidder, bid.burnTBid), "Burner/Error sending tokens for old bidder");
 
         //  Transfer the difference between the old and new bid of `burnT` from msg.sender to this contract
-        require(burnT.transferFrom(msg.sender, address(this), _newBurnTBid - bids[_id].burnTBid),  "Burner/Error pulling tokens from bidder");
+        require(burnT.safeTransferFrom(msg.sender, address(this), _newBurnTBid - bid.burnTBid),"Burner/Error pulling tokens from bidder");
 
         // Update mapping bid to auction with the new bid values
-        bids[_id].bidder = msg.sender;
-        bids[_id].burnTBid = _newBurnTBid;
-        bids[_id].expirationTime = uint48(now.add(uint256(bidDuration)));
+        bid.bidder = msg.sender;
+        bid.burnTBid = _newBurnTBid;
+        bid.expirationTime = uint48(now.add(uint256(bidDuration)));
 
         // Emit offer event
         emit Offer(_id, _newBurnTBid, msg.sender);
@@ -245,23 +249,20 @@ contract Burner is Ownable, Auth {
             The `burnT` tokens of the bid are burned (transfer to address 0x).
         @param _id Auction Id
     */
-    function claim(
-        uint256 _id
-    ) external {
-        // Checks contract is still alive
-        require(live == 1, "Burner/not-live");
+    function claim(uint256 _id) external isAlive {
+        Bid storage bid = bids[_id];
 
         // Checks that the offer expiration is not 0 and auction or offer expiration finished
-        require(bids[_id].expirationTime != 0 && (bids[_id].expirationTime < now || bids[_id].end < now), "Burner/not-finished");
+        require(bid.expirationTime != 0 && (bid.expirationTime < now || bid.end < now), "Burner/not-finished");
 
         // Transfers the `soldT` tokens auctioned to the bidder who won the auction
-        require(soldT.transfer(bids[_id].bidder, bids[_id].soldTAmount), "Burner/ Error claiming tokens");
+        require(soldT.safeTransfer(bid.bidder, bid.soldTAmount), "Burner/ Error claiming tokens");
 
         // Transfers the bid burnT amount to the address(0)
-        require(burnT.transfer(address(0), bids[_id].burnTBid), "Burner/Error burning tokens");
+        require(burnT.safeTransfer(address(0), bid.burnTBid), "Burner/Error burning tokens");
 
         // Emit claim event
-        emit Claim(_id, bids[_id].soldTAmount, bids[_id].burnTBid);
+        emit Claim(_id, bid.soldTAmount, bid.burnTBid);
 
         // Delete auction bid mapping entry
         delete bids[_id];
@@ -273,13 +274,11 @@ contract Burner is Ownable, Auth {
             Can only be called by an authorized user.
         @param _amount amount of `soldT` to recover from the contract
     */
-    function recover(
-        uint256 _amount
-    ) external auth {
+    function recover(uint256 _amount) external auth {
         live = 0;
 
         // Transfers an amount of `soldT` to the msg.sender
-        require(soldT.transfer(msg.sender, _amount), "Burner/Error recovering tokens");
+        require(soldT.safeTransfer(msg.sender, _amount), "Burner/Error recovering tokens");
 
         // emit Recover event
         emit Recover(msg.sender, _amount);
@@ -289,20 +288,20 @@ contract Burner is Ownable, Auth {
         @notice Bidder is able to reclaim it's bid if contract is not live.
         @param _id auction Id
     */
-    function reclaim(
-        uint256 _id
-    ) external {
+    function reclaim(uint256 _id) external {
         // Checks contract is not alive
         require(live == 0, "Burner/still-live");
 
+        Bid storage bid = bids[_id];
+
         // Checks auction has a bidder set
-        require(bids[_id].bidder != address(0), "Burner/bidder-not-set");
+        require(bid.bidder != address(0), "Burner/bidder-not-set");
 
         // Trasfers `burnT` bid back to the bidder
-        require(burnT.transfer(bids[_id].bidder, bids[_id].burnTBid), "Burner/Error bidder recovering bid");
+        require(burnT.safeTransfer(bid.bidder, bid.burnTBid), "Burner/Error bidder recovering bid");
 
         // Emit reclaim event
-        emit Reclaim(_id, bids[_id].bidder, bids[_id].burnTBid);
+        emit Reclaim(_id, bid.bidder, bid.burnTBid);
 
         // Delete auction bid mapping entry
         delete bids[_id];
@@ -316,13 +315,9 @@ contract Burner is Ownable, Auth {
         @param _amount Amount of `soldT` to convert
         @return The value of the `soldT` amount denominated in `burnT`
     */
-    function _toBurnT(
-        RateOracle _oracle,
-        uint256 _amount
-    ) private view returns (uint256) {
+    function _toBurnT(RateOracle _oracle, uint256 _amount) private view returns (uint256) {
         return _oracle
             .readStatic()
             .toTokens(_amount);
     }
 }
-

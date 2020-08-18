@@ -1,5 +1,5 @@
 const Burner = artifacts.require('Burner');
-const TestToken = artifacts.require('TestToken');
+const TestToken = artifacts.require('TestTokenBurner');
 const TestRateOracle = artifacts.require('TestRateOracle');
 
 const {
@@ -14,6 +14,10 @@ const {
 
 function toWei (stringNumber) {
     return bn(stringNumber).mul(bn(10).pow(bn(18)));
+}
+
+function toDecimals (stringNumber, decimals) {
+    return bn(stringNumber).mul(bn(10).pow(bn(decimals)));
 }
 
 function getPercentage (rate, percentage) {
@@ -44,6 +48,7 @@ contract('Burner Contract', function (accounts) {
     let oracle;
 
     const WEI = bn(web3.utils.toWei('1'));
+    const tokensBase = WEI.mul(WEI);
 
     async function snap (auctionId, newBidder) {
         const auction = await burner.bids(auctionId);
@@ -64,8 +69,8 @@ contract('Burner Contract', function (accounts) {
     }
 
     async function getBurnTEquivalent (soldTAmount) {
-        const rate = await oracle.RCNequivalent(); // 1 BASE == 0.055 TOKEN
-        const burnTEquivalent = bn(soldTAmount).mul(WEI).div(rate);
+        const rate = await oracle.RCNequivalent();
+        const burnTEquivalent = bn(soldTAmount).mul(tokensBase).div(rate);
         return burnTEquivalent;
     }
 
@@ -144,15 +149,15 @@ contract('Burner Contract', function (accounts) {
     }
 
     before('Create Burner and TestTokens', async function () {
-        burnT = await TestToken.new({ from: owner });
-        soldT = await TestToken.new({ from: owner });
+        burnT = await TestToken.new('BURNT', 'Burn token', '18', { from: owner });
+        soldT = await TestToken.new('SOLDT', 'Sold Token', '6', { from: owner });
         oracle = await TestRateOracle.new({ from: owner });
-        await oracle.setEquivalent(bn(55000000000000000));
+        await oracle.setEquivalent(bn('86949911832000000000000'));
         await oracle.setToken(soldT.address, { from: owner });
 
         burner = await Burner.new(burnT.address, soldT.address, oracle.address, { from: owner });
 
-        await soldT.setBalance(owner, toWei(bn(10000000)));
+        await soldT.setBalance(owner, toDecimals('10000000', '6'));
         // Set balances of burnT for bidders
         await burnT.setBalance(owner, toWei(bn(10000000)));
         await burnT.setBalance(bidder1, toWei(bn(10000000)));
@@ -169,7 +174,7 @@ contract('Burner Contract', function (accounts) {
     describe('Test startAuction function', async function () {
         it('Revert - Try start a new auction setting soldT too low', async function () {
             const burnTBid = toWei('90');
-            const soldTAmount = toWei('10');
+            const soldTAmount = toDecimals('90', '6');
             await tryCatchRevert(
                 () => burner.startAuction(
                     burnTBid,
@@ -181,7 +186,7 @@ contract('Burner Contract', function (accounts) {
         });
         it('Revert - Try start a new auction without enought soldT balance', async function () {
             const burnTBid = toWei('90');
-            const soldTAmount = toWei('100');
+            const soldTAmount = toDecimals('100', '6');
             await tryCatchRevert(
                 () => burner.startAuction(
                     burnTBid,
@@ -192,14 +197,14 @@ contract('Burner Contract', function (accounts) {
             );
         });
         it('Revert - Auction Bid amount should be less than market value', async function () {
-            const soldTAmount = toWei('100');
+            const soldTAmount = toDecimals('100', '6');
             soldT.transfer(burner.address, soldTAmount, { from: owner });
-            const rate = await oracle.RCNequivalent();   // 1 BASE == 0.055 TOKEN
-            const burnTEquivalent = bn(soldTAmount).mul(WEI).div(rate);
+            const burnTEquivalent = await getBurnTEquivalent(soldTAmount);
+            const initialBid = getPercentage(burnTEquivalent, 105);
 
             await tryCatchRevert(
                 () => burner.startAuction(
-                    burnTEquivalent,
+                    initialBid,
                     soldTAmount,
                     { from: owner }
                 ),
@@ -207,14 +212,14 @@ contract('Burner Contract', function (accounts) {
             );
         });
         it('Try start a new auction', async function () {
-            const { burnTBid, soldTAmount } = await startNewAuction(toWei('100'), 90);
+            const { burnTBid, soldTAmount } = await startNewAuction(toDecimals('100', '6'), 90);
             await startAuction(burnTBid, soldTAmount);
         });
     });
 
     describe('Test Offer function', async function () {
         it('Revert - Try to bid on a expired auction', async function () {
-            const { burnTBid, soldTAmount } = await startNewAuction(toWei('100'), 90);
+            const { burnTBid, soldTAmount } = await startNewAuction(toDecimals('100', '6'), 90);
             const id = await startAuction(burnTBid, soldTAmount);
 
             const newBid = getPercentage(toWei(burnTBid), 105);
@@ -230,7 +235,7 @@ contract('Burner Contract', function (accounts) {
             );
         });
         it('Revert - try new bid when bid already expired', async function () {
-            const { burnTBid, soldTAmount } = await startNewAuction(toWei('100'), 90);
+            const { burnTBid, soldTAmount } = await startNewAuction(toDecimals('100', '6'), 90);
             const id = await startAuction(burnTBid, soldTAmount);
             const burnTEquivalent = await getBurnTEquivalent(soldTAmount);
             const newBid = getPercentage(burnTEquivalent, 105);
@@ -258,7 +263,7 @@ contract('Burner Contract', function (accounts) {
             );
         });
         it('Revert - try new bid not higher', async function () {
-            const { burnTBid, soldTAmount } = await startNewAuction(toWei('100'), 90);
+            const { burnTBid, soldTAmount } = await startNewAuction(toDecimals('100', '6'), 90);
             const id = await startAuction(burnTBid, soldTAmount);
             const burnTEquivalent = await getBurnTEquivalent(soldTAmount);
             const newBid = getPercentage(burnTEquivalent, 105);
@@ -274,7 +279,7 @@ contract('Burner Contract', function (accounts) {
             );
         });
         it('Revert - try new bid with insufficient increase', async function () {
-            const { burnTBid, soldTAmount } = await startNewAuction(toWei('100'), 90);
+            const { burnTBid, soldTAmount } = await startNewAuction(toDecimals('100', '6'), 90);
             const id = await startAuction(burnTBid, soldTAmount);
             const burnTEquivalent = await getBurnTEquivalent(soldTAmount);
             const newBid = getPercentage(burnTEquivalent, 105);
@@ -291,14 +296,14 @@ contract('Burner Contract', function (accounts) {
             );
         });
         it('try new bid', async function () {
-            const { burnTBid, soldTAmount } = await startNewAuction(toWei('100'), 90);
+            const { burnTBid, soldTAmount } = await startNewAuction(toDecimals('100', '6'), 90);
             const id = await startAuction(burnTBid, soldTAmount);
             const burnTEquivalent = await getBurnTEquivalent(soldTAmount);
             const newBid = getPercentage(burnTEquivalent, 105);
             await offer(id, newBid, bidder1);
         });
         it('try new bid 1 , then better bid 2 ', async function () {
-            const { burnTBid, soldTAmount } = await startNewAuction(toWei('100'), 90);
+            const { burnTBid, soldTAmount } = await startNewAuction(toDecimals('100', '6'), 90);
             const id = await startAuction(burnTBid, soldTAmount);
             const burnTEquivalent = await getBurnTEquivalent(soldTAmount);
             const newBid = getPercentage(burnTEquivalent, 105);
@@ -312,7 +317,7 @@ contract('Burner Contract', function (accounts) {
     });
     describe('Test claim function', async function () {
         it('bidder should claim its winner bid', async function () {
-            const { burnTBid, soldTAmount } = await startNewAuction(toWei('100'), 90);
+            const { burnTBid, soldTAmount } = await startNewAuction(toDecimals('100', '6'), 90);
             const id = await startAuction(burnTBid, soldTAmount);
             const burnTEquivalent = await getBurnTEquivalent(soldTAmount);
             const newBid = getPercentage(burnTEquivalent, 105);
@@ -321,7 +326,7 @@ contract('Burner Contract', function (accounts) {
             await claim(id);
         });
         it('cannnot claim, auction not finished yet', async function () {
-            const { burnTBid, soldTAmount } = await startNewAuction(toWei('100'), 90);
+            const { burnTBid, soldTAmount } = await startNewAuction(toDecimals('100', '6'), 90);
             const id = await startAuction(burnTBid, soldTAmount);
             const burnTEquivalent = await getBurnTEquivalent(soldTAmount);
             const newBid = getPercentage(burnTEquivalent, 105);
@@ -339,7 +344,7 @@ contract('Burner Contract', function (accounts) {
     });
     describe('Test restartAuction function', async function () {
         it('Restart an auction when ended', async function () {
-            const { burnTBid, soldTAmount } = await startNewAuction(toWei('100'), 90);
+            const { burnTBid, soldTAmount } = await startNewAuction(toDecimals('100', '6'), 90);
             const id = await startAuction(burnTBid, soldTAmount);
             increaseTime(60 * 60 * 24 * 2 + 1); // more than 2 days
             const tx = await burner.restartAuction(id);
@@ -348,7 +353,7 @@ contract('Burner Contract', function (accounts) {
             assert(auction.end, bn(txNow).add(await burner.auctionDuration()));
         });
         it('Cannot Restart an auction that it is not over ', async function () {
-            const { burnTBid, soldTAmount } = await startNewAuction(toWei('100'), 90);
+            const { burnTBid, soldTAmount } = await startNewAuction(toDecimals('100', '6'), 90);
             const id = await startAuction(burnTBid, soldTAmount);
             await tryCatchRevert(
                 () => burner.restartAuction(
@@ -359,7 +364,7 @@ contract('Burner Contract', function (accounts) {
             );
         });
         it('Cannot Restart an auction that has already a new bid ', async function () {
-            const { burnTBid, soldTAmount } = await startNewAuction(toWei('100'), 90);
+            const { burnTBid, soldTAmount } = await startNewAuction(toDecimals('100', '6'), 90);
             const id = await startAuction(burnTBid, soldTAmount);
             const burnTEquivalent = await getBurnTEquivalent(soldTAmount);
             const newBid = getPercentage(burnTEquivalent, 105);
@@ -410,7 +415,7 @@ contract('Burner Contract', function (accounts) {
     });
     describe('Test authorazation', async function () {
         it('should not be able to start a new auction if user is not authorize', async function () {
-            const { burnTBid, soldTAmount } = await startNewAuction(toWei('100'), 90);
+            const { burnTBid, soldTAmount } = await startNewAuction(toDecimals('100', '6'), 90);
             await tryCatchRevert(
                 () => burner.startAuction(
                     burnTBid,
@@ -423,7 +428,7 @@ contract('Burner Contract', function (accounts) {
         it('should authorize a new user', async function () {
             await burner.rely(bidder1, { from: owner });
             assert(await burner.authorized(bidder1), 1);
-            const { burnTBid, soldTAmount } = await startNewAuction(toWei('100'), 90);
+            const { burnTBid, soldTAmount } = await startNewAuction(toDecimals('100', '6'), 90);
             await burner.startAuction(
                 burnTBid,
                 soldTAmount,
@@ -432,7 +437,7 @@ contract('Burner Contract', function (accounts) {
         });
         it('should revoke authorization for a user', async function () {
             await burner.deny(bidder1, { from: owner });
-            const { burnTBid, soldTAmount } = await startNewAuction(toWei('100'), 90);
+            const { burnTBid, soldTAmount } = await startNewAuction(toDecimals('100', '6'), 90);
             await tryCatchRevert(
                 () => burner.startAuction(
                     burnTBid,
@@ -445,7 +450,7 @@ contract('Burner Contract', function (accounts) {
     });
     describe('Test BURNER not live', async function () {
         it('try reclaim when burner still live', async function () {
-            const { burnTBid, soldTAmount } = await startNewAuction(toWei('100'), 90);
+            const { burnTBid, soldTAmount } = await startNewAuction(toDecimals('100', '6'), 90);
             const id = await startAuction(burnTBid, soldTAmount);
             const burnTEquivalent = await getBurnTEquivalent(soldTAmount);
             const newBid = getPercentage(burnTEquivalent, 105);
@@ -460,7 +465,7 @@ contract('Burner Contract', function (accounts) {
             );
         });
         it('Recover soldT from burner contract and reclaim bid', async function () {
-            const { burnTBid, soldTAmount } = await startNewAuction(toWei('100'), 90);
+            const { burnTBid, soldTAmount } = await startNewAuction(toDecimals('100', '6'), 90);
             const id = await startAuction(burnTBid, soldTAmount);
             // test recover
             const burnerSoldTBefore = await soldT.balanceOf(burner.address);
@@ -479,7 +484,7 @@ contract('Burner Contract', function (accounts) {
             expect(ownerBurnTAfter).to.eq.BN(ownerBurnTBefore.add(burnTBid));
         });
         it('cannot start auction , offer or claim if burner not live', async function () {
-            const { burnTBid, soldTAmount } = await startNewAuction(toWei('100'), 90);
+            const { burnTBid, soldTAmount } = await startNewAuction(toDecimals('100', '6'), 90);
             await tryCatchRevert(
                 () => burner.startAuction(
                     burnTBid,
