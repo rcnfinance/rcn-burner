@@ -1,5 +1,5 @@
 /* solium-disable */
-pragma solidity ^0.5.12;
+pragma solidity ^0.6.6;
 
 import "../../contracts/utils/SafeMath.sol";
 
@@ -102,7 +102,7 @@ contract TestTokenBurner is StandardToken {
         emit CreatedToken(address(this));
     }
 
-    function () external payable {
+    receive() external payable {
         buyTokens(msg.sender);
     }
 
