@@ -26,6 +26,7 @@ contract BurnerConverter is Ownable {
     event SetConverter(ITokenConverter _converter);
 
     function setConverter(ITokenConverter _converter) external onlyOwner {
+        require(address(_converter) != address(0), "Converter 0x0 is not valid");
         converter = _converter;
         emit SetConverter(_converter);
     }
