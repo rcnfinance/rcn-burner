@@ -1,4 +1,4 @@
-pragma solidity ^0.5.12;
+pragma solidity ^0.6.6;
 
 import "./interfaces/IERC20.sol";
 import "./interfaces/RateOracle.sol";
@@ -153,7 +153,7 @@ contract Burner is Ownable, Auth {
             the market price.
         @param _burnTBid Initial `burnT` bid
         @param _soldTAmount Amount to be auctioned of `soldT`
-        @return The id of the new auction
+        @return id The id of the new auction
     */
     function startAuction(uint256 _burnTBid, uint256 _soldTAmount) external auth isAlive returns (uint256 id) {
         // Checks _soldTAmount is more than minimum required to start auction
