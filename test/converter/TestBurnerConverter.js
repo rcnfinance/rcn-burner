@@ -7,9 +7,7 @@ const {
     tryCatchRevert,
     toEvents,
     expect,
-    increaseTime,
     address0x,
-    getTxTime,
 } = require('../Helper.js');
 
 function toWei (stringNumber) {
@@ -20,6 +18,10 @@ function toDecimals (stringNumber, decimals) {
     return bn(stringNumber).mul(bn(10).pow(bn(decimals)));
 }
 
+function getAmountB (amountA, reserveA, reserveB) {
+    return bn(amountA).mul(bn(reserveB)).div(bn(reserveA));
+};
+
 contract('Burner Contract', function (accounts) {
     const owner = accounts[0];
 
@@ -27,9 +29,6 @@ contract('Burner Contract', function (accounts) {
     let soldT;
     let burnerConverter;
     let converter;
-
-    const WEI = bn(web3.utils.toWei('1'));
-    const tokensBase = WEI.mul(WEI);
 
     before('Deploy contracts', async function () {
         burnT = await TestToken.new('BURNT', 'Burn token', '18', { from: owner });
@@ -81,8 +80,22 @@ contract('Burner Contract', function (accounts) {
 
     // Test getters function
     describe('Test getters ', async function () {
-        it('', async function () {
+        it('getPriceConvertFrom function', async function () {
+            // reserveA Token soldT price 0.05 burnT
+            const reserveA = toDecimals('5', '6');
+            const reserveB = toDecimals('100', '18');
 
+            await converter.setReserves(reserveA, reserveB);
+            const fromAmount = toDecimals('10', '6');
+
+            const toAmount = await burnerConverter.getPriceConvertFrom(soldT.address, burnT.address, fromAmount);
+            const expectedToAmount = getAmountB(fromAmount, reserveA, reserveB);
+            expect(toAmount).to.eq.BN(expectedToAmount);
+        });
+        it('getSoldTBalance function', async function () {
+            const balance = await soldT.balanceOf(burnerConverter.address);
+            const burnerBalance = await burnerConverter.getSoldTBalance(soldT.address);
+            expect(balance).to.eq.BN(burnerBalance);
         });
     });
 
