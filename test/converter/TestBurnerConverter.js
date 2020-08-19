@@ -1,6 +1,6 @@
 const BurnerConverter = artifacts.require('BurnerConverter');
 const TestToken = artifacts.require('TestTokenBurner');
-const DummyConverter = artifacts.require('DummyConverter');
+const FakeConverter = artifacts.require('FakeConverter');
 
 const {
     bn,
@@ -34,10 +34,15 @@ contract('Burner Contract', function (accounts) {
         burnT = await TestToken.new('BURNT', 'Burn token', '18', { from: owner });
         soldT = await TestToken.new('SOLDT', 'Sold Token', '6', { from: owner });
 
-        converter = await DummyConverter.new();
+        converter = await FakeConverter.new();
 
         burnerConverter = await BurnerConverter.new(burnT.address, converter.address, { from: owner });
         await burnT.setBalance(converter.address, toWei(bn(10000000)));
+
+        // reserveA Token soldT price 0.05 burnT
+        const reserveA = toDecimals('5', '6');
+        const reserveB = toDecimals('100', '18');
+        await converter.setReserves(reserveA, reserveB);
     });
 
     // Test Set converter function
@@ -81,8 +86,8 @@ contract('Burner Contract', function (accounts) {
     // Test getters function
     describe('Test getters ', async function () {
         it('getPriceConvertFrom function', async function () {
-            // reserveA Token soldT price 0.05 burnT
-            const reserveA = toDecimals('5', '6');
+            // reserveA Token soldT price 0.07 burnT
+            const reserveA = toDecimals('7', '6');
             const reserveB = toDecimals('100', '18');
 
             await converter.setReserves(reserveA, reserveB);
@@ -101,9 +106,57 @@ contract('Burner Contract', function (accounts) {
 
     // Test executeBurning function
     describe('executeBurning function', async function () {
-        it('', async function () {
-            await soldT.setBalance(owner, toDecimals('10000000', '6'));
+        it('Should convert tokens and burn received', async function () {
+            await soldT.setBalance(burnerConverter.address, toDecimals('1000', '6'));
+            const soldAmount = await burnerConverter.getSoldTBalance(soldT.address);
+            const expectedReceived = await burnerConverter.getPriceConvertFrom(soldT.address, burnT.address, soldAmount);
+            const minReceived = bn(expectedReceived).mul(bn(997)).div(bn(1000));
+
+            const BurnTokens = await toEvents(
+                burnerConverter.executeBurning(
+                    soldT.address,
+                    soldAmount,
+                    minReceived,
+                    { from: accounts[0] }
+                ),
+                'BurnTokens'
+            );
+
+            assert.equal(BurnTokens._soldToken, soldT.address);
+            expect(BurnTokens._soldAmount).to.eq.BN(soldAmount);
+            expect(BurnTokens._burnAmount).to.eq.BN(expectedReceived);
+        });
+        it('Should revert if converted received amount is less than min received', async function () {
+            await soldT.setBalance(burnerConverter.address, toDecimals('2000', '6'));
+            const soldAmount = await burnerConverter.getSoldTBalance(soldT.address);
+            const expectedReceived = await burnerConverter.getPriceConvertFrom(soldT.address, burnT.address, soldAmount);
+            const minReceived = bn(expectedReceived).mul(bn(1005)).div(bn(1000));
+
+            await tryCatchRevert(
+                () => burnerConverter.executeBurning(
+                    soldT.address,
+                    soldAmount,
+                    minReceived,
+                    { from: accounts[0] }
+                ),
+                'BurnerConverter/Amount received is less than minReceived'
+            );
+        });
+        it('Only owner can call executeBurning function', async function () {
+            await soldT.setBalance(burnerConverter.address, toDecimals('1500', '6'));
+            const soldAmount = await burnerConverter.getSoldTBalance(soldT.address);
+            const expectedReceived = await burnerConverter.getPriceConvertFrom(soldT.address, burnT.address, soldAmount);
+            const minReceived = bn(expectedReceived).mul(bn(997)).div(bn(1000));
+
+            await tryCatchRevert(
+                () => burnerConverter.executeBurning(
+                    soldT.address,
+                    soldAmount,
+                    minReceived,
+                    { from: accounts[1] }
+                ),
+                'Ownable: caller is not the owner'
+            );
         });
     });
-
 });

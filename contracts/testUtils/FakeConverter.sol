@@ -5,7 +5,7 @@ import "../utils/SafeMath.sol";
 import "../commons/Ownable.sol";
 
 
-contract DummyConverter is ITokenConverter, Ownable {
+contract FakeConverter is ITokenConverter, Ownable {
     using SafeMath for uint256;
     // ex: rate = 500 => 5%
     uint256 public reserveA;
