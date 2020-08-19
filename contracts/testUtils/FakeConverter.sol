@@ -27,8 +27,8 @@ contract FakeConverter is ITokenConverter, Ownable {
     ) external override payable  returns (uint256 _received) {
         _received = _getAmount(_fromAmount, reserveA, reserveB);
         require(_fromToken.transferFrom(msg.sender, address(this), _fromAmount), "Error pulling tokens");
-        require(_fromToken.transfer(address(0), _fromAmount), 'Error transfer to address(0)');
-        require(_toToken.transfer(msg.sender, _received), 'Error transfer converted tokens');
+        require(_fromToken.transfer(address(0), _fromAmount), "Error transfer to address(0)");
+        require(_toToken.transfer(msg.sender, _received), "Error transfer converted tokens");
     }
 
     function getPriceConvertFrom(
@@ -47,8 +47,8 @@ contract FakeConverter is ITokenConverter, Ownable {
     ) external override payable returns (uint256 _spend) {
         _spend = _getAmount(_toAmount, reserveB, reserveA);
         require(_fromToken.transferFrom(msg.sender, address(this), _spend), "Error pulling tokens");
-        require(_fromToken.transfer(address(0), _spend), 'Error transfer to address(0)');
-        require(_toToken.transfer(msg.sender, _toAmount), 'Error transfer converted tokens');
+        require(_fromToken.transfer(address(0), _spend), "Error transfer to address(0)");
+        require(_toToken.transfer(msg.sender, _toAmount), "Error transfer converted tokens");
     }
 
     function getPriceConvertTo(

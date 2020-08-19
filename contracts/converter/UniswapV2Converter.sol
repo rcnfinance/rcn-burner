@@ -1,3 +1,4 @@
+/* solium-disable */
 pragma solidity ^0.6.6;
 
 import "./../interfaces/ITokenConverter.sol";
