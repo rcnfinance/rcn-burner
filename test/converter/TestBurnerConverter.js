@@ -35,14 +35,13 @@ contract('Burner Contract', function (accounts) {
         soldT = await TestToken.new('SOLDT', 'Sold Token', '6', { from: owner });
 
         converter = await FakeConverter.new();
-
-        burnerConverter = await BurnerConverter.new(burnT.address, converter.address, { from: owner });
-        await burnT.setBalance(converter.address, toWei(bn(10000000)));
-
         // reserveA Token soldT price 0.05 burnT
         const reserveA = toDecimals('5', '6');
         const reserveB = toDecimals('100', '18');
         await converter.setReserves(reserveA, reserveB);
+
+        burnerConverter = await BurnerConverter.new(burnT.address, converter.address, { from: owner });
+        await burnT.setBalance(converter.address, toWei(bn(10000000)));
     });
 
     // Test Set converter function
