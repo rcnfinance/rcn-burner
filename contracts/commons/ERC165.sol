@@ -36,7 +36,7 @@ contract ERC165 is IERC165 {
     function supportsInterface(bytes4 interfaceId)
         external
         override
-        view 
+        view
         returns (bool)
     {
         return _supportedInterfaces[interfaceId];
