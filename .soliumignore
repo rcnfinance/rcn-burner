@@ -2,4 +2,6 @@ node_modules
 coverageEnv
 .git
 contracts/interfaces/RateOracle.sol
-contracts/testUtils/TestTokenBurner.sol
+contracts/testUtils
+contracts/interfaces/uniswapV2/IUniswapV2Router02.sol
+contracts/converter/UniswapV2Converter.sol
