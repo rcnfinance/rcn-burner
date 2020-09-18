@@ -11,8 +11,8 @@ contract BurnerConverter is Ownable {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    IERC20 public burnToken;
-    ITokenConverter public converter;
+    IERC20 public immutable burnToken;
+    ITokenConverter public immutable converter;
 
     constructor(
         IERC20 _burnToken,
