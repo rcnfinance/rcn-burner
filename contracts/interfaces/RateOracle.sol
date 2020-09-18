@@ -1,4 +1,5 @@
-pragma solidity ^0.5.12;
+/* solium-disable */
+pragma solidity ^0.6.6;
 
 
 interface RateOracle {

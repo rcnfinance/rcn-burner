@@ -1,5 +1,5 @@
 /* solium-disable */
-pragma solidity ^0.5.12;
+pragma solidity ^0.6.6;
 
 import "../../contracts/utils/SafeMath.sol";
 
@@ -76,7 +76,7 @@ contract StandardToken {
 }
 
 
-contract TestToken is StandardToken {
+contract TestTokenBurner is StandardToken {
     event Mint(address indexed to, uint256 amount);
     event Destroy(address indexed from, uint256 amount);
 
@@ -102,7 +102,7 @@ contract TestToken is StandardToken {
         emit CreatedToken(address(this));
     }
 
-    function () external payable {
+    receive() external payable {
         buyTokens(msg.sender);
     }
 

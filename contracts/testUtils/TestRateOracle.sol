@@ -1,4 +1,4 @@
-pragma solidity ^0.5.12;
+pragma solidity ^0.6.6;
 
 import "../interfaces/RateOracle.sol";
 
@@ -18,7 +18,7 @@ contract TestRateOracle is RateOracle {
         emit SetEquivalent(_equivalent);
     }
 
-    function readSample(bytes calldata) external returns (uint256 tokens, uint256 equivalent) {
+    function readSample(bytes calldata) external override returns (uint256 tokens, uint256 equivalent) {
         tokens = 1000000000000000000000000000000000000;
         equivalent = RCNequivalent;
     }
