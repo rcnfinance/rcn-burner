@@ -12,7 +12,7 @@ contract BurnerConverter is Ownable {
     using SafeERC20 for IERC20;
 
     IERC20 public immutable burnToken;
-    ITokenConverter public immutable converter;
+    ITokenConverter public converter;
 
     constructor(
         IERC20 _burnToken,
@@ -23,6 +23,13 @@ contract BurnerConverter is Ownable {
     }
 
     event BurnTokens(IERC20 _soldToken, uint256 _soldAmount,uint256 _burnAmount);
+    event SetConverter(ITokenConverter _converter);
+
+    function setConverter(ITokenConverter _converter) external onlyOwner {
+        require(address(_converter) != address(0), "Converter 0x0 is not valid");
+        converter = _converter;
+        emit SetConverter(_converter);
+    }
 
     function getPriceConvertFrom(IERC20 _fromToken, IERC20 _toToken, uint256 _fromAmount) external view returns (uint256){
         return converter.getPriceConvertFrom(_fromToken,_toToken,_fromAmount);
