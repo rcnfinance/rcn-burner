@@ -17,7 +17,7 @@ contract BurnerBridge is Ownable {
         address _to,
         uint256 _amount
     ) external onlyOwner {
-        _token.transfer(_to, _amount);
+        _token.safeTransfer(_to, _amount);
         emit Withdraw(_token, _to, _amount);
     }
 }
